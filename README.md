@@ -40,7 +40,7 @@ Input
 Output
 ---
 
-csv파일 형식으로 출력
+csv파일 형식으로 출력(Redirection)
 
 각 선수는 트랙의 기록에 따라 상대적인 실력 지표(Z)를 부여받는다.
 
