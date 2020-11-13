@@ -1,17 +1,22 @@
 #include "kartTeam.h"
 
 int main() {
+	FILE* fp;
 	Player* player;
 	Track* track;
 	int playerCnt, trackCnt;
 	int i;
-	
+
 	scanf("%d %d", &playerCnt, &trackCnt);
+	if (playerCnt % 4 != 0)
+		errorExit("¼±¼öÀÇ ¼ö°¡ 4ÀÇ ¹è¼ö°¡ µÇ¾î¾ß ÇÕ´Ï´Ù.");
+
+	fp = fopen("result.csv", "w");
 
 	player = new Player[playerCnt];
 	for (i = 0; i < playerCnt; i++) {
 		player[i].trackRec = new double[trackCnt];
-		player[i].trackZ = new double[trackCnt];
+		player[i].trackT = new double[trackCnt];
 	}
 
 	track = new Track[trackCnt];
@@ -21,15 +26,25 @@ int main() {
 
 	for (i = 0; i < playerCnt; i++)
 		player[i].input(trackCnt);
+	printf("\n");
 
 	for (i = 0; i < trackCnt; i++)
 		track[i].getTrackStat(player, playerCnt, i);
 
 	for (i = 0; i < playerCnt; i++)
-		player[i].calcZ(track, trackCnt);
+		player[i].calcT(track, trackCnt);
 	sortPlayer(player, playerCnt);
 
-	printResult(player, playerCnt, track, trackCnt, getOptComp(player, playerCnt));
+	writeResult(fp, player, playerCnt, track, trackCnt, getOptComp(player, playerCnt));
+	fclose(fp);
+	printf("\nÆÀ Æí¼º ¿Ï·á! result.csv ÆÄÀÏÀ» È®ÀÎÇÏ¼¼¿ä.\n\n");
+	system("pause");
+}
+
+void errorExit(const char* s) {
+	printf("%s\n\n", s);
+	system("pause");
+	exit(-1);
 }
 
 void Player::input(int trackCnt) {
@@ -42,19 +57,19 @@ void Player::input(int trackCnt) {
 	}
 }
 
-void Player::calcZ(Track* track, int trackCnt) {
+void Player::calcT(Track* track, int trackCnt) {
 	int i;
 
-	Z = 0;
+	T = 0;
 	for (i = 0; i < trackCnt; i++) {
-		trackZ[i] = -20.0 * (trackRec[i] - track[i].avg) / track[i].std + 100;
-		Z += trackZ[i];
+		trackT[i] = -20.0 * (trackRec[i] - track[i].avg) / track[i].std + 100;
+		T += trackT[i];
 	}
-	Z /= trackCnt;
+	T /= trackCnt;
 }
 
 /*
-	íŠ¸ëž™ì˜ ê¸°ë¡ í‰ê· ê³¼ í‘œì¤€íŽ¸ì°¨ë¥¼ êµ¬í•œë‹¤.
+	Æ®·¢ÀÇ ±â·Ï Æò±Õ°ú Ç¥ÁØÆíÂ÷¸¦ ±¸ÇÑ´Ù.
 	Update : avg, std
 */
 void Track::getTrackStat(Player* player, int playerCnt, int trackNum) {
@@ -73,44 +88,43 @@ void Track::getTrackStat(Player* player, int playerCnt, int trackNum) {
 }
 
 /*
-	oppTeamê³¼ì˜ ê²½ê¸°ë¥¼ matchCntë²ˆ ì‹œë®¬ë ˆì´ì…˜í•œë‹¤.
-	í•œ ë²ˆì˜ ê²½ê¸°ì—ì„œ ì„ ìˆ˜ë“¤ì€ ê°ìžì˜ Zì— randomí•˜ê²Œ ì»¨ë””ì…˜ í•˜ë½(-20 ~ 0)ì„ ë°›ëŠ”ë‹¤.
-	Output : |(ìƒëŒ€ íŒ€ì— ëŒ€í•œ ìš°ë¦¬ íŒ€ ì ìˆ˜ ì°¨ì´ì˜ í‰ê· | (ë‚®ì„ìˆ˜ë¡ ë°¸ëŸ°ìŠ¤ê°€ ì¢‹ìŒ)
-			   ex) ìš°ë¦¬íŒ€ 20ì  ìƒëŒ€íŒ€ 19ì ì´ë©´ +1)
+	oppTeam°úÀÇ °æ±â¸¦ matchCnt¹ø ½Ã¹Ä·¹ÀÌ¼ÇÇÑ´Ù.
+
+	Output : »ó´ë ÆÀ¿¡ ´ëÇÑ ¿ì¸® ÆÀ Á¡¼ö Â÷ÀÌÀÇ Æò±Õ (Àý´ñ°ªÀÌ ³·À»¼ö·Ï ¹ë·±½º°¡ ÁÁÀ½)
 */
 double Team::matchA(Team oppTeam, int matchCnt) {
 	int rank[8], score[8] = { 10, 8, 6, 5, 4, 3, 2, 1 };
 	int i, j, k;
 	double resScore = 0;
-	Player player[8];	// player[0 ~ 3] : ì•„êµ°, player[4 ~ 7] : ìƒëŒ€
+	Player player[8];	// player[0 ~ 3] : ¾Æ±º, player[4 ~ 7] : »ó´ë
 
 	srand(time(NULL));
 	for (i = 0; i < matchCnt; i++) {
-		// rank ì´ˆê¸°í™”
+		// rank ÃÊ±âÈ­
 		for (j = 0; j < 8; j++)
 			rank[j] = j;
 
-		// player[]ì— ì„ ìˆ˜ ì •ë³´ë¥¼ ë„£ëŠ”ë‹¤.
-		// ì„ ìˆ˜ë“¤ì€ ê°ìžì˜ Zì— randomí•œ ì»¨ë””ì…˜ í•˜ë½(-20 ~ 0)ì„ ë°›ëŠ”ë‹¤.
+		// player[]¿¡ ¼±¼ö Á¤º¸¸¦ ³Ö´Â´Ù.
+		// ¼±¼öµéÀº °¢ÀÚÀÇ T¿¡ randomÇÑ ÄÁµð¼Ç ÇÏ¶ô(-20 ~ 0)À» ¹Þ´Â´Ù.
 		for (j = 0; j < 4; j++) {
 			player[j] = this->member[j];
-			player[j].Z -= rand() % 20 - 1;
+			player[j].T -= rand() % 20 - 1;
 			
 			player[j + 4] = oppTeam.member[j];
-			player[j + 4].Z -= rand() % 20 - 1;
+			player[j + 4].T -= rand() % 20 - 1;
 		}
 
-		// ìˆœìœ„ ì •ë ¬ (Bubble Sort)
-		// rank[n]ì—ëŠ” (n + 1)ë“±ì„ í•œ ì„ ìˆ˜ì˜ ë²ˆí˜¸ê°€ ë“¤ì–´ê°€ê²Œ ëœë‹¤.
+		// ¼øÀ§ Á¤·Ä (Bubble Sort)
+		// rank[n] : (n + 1)µîÀ» ÇÑ ¼±¼öÀÇ index
 		for (j = 7; j > 0; j--)
 			for (k = 0; k < j; k++)
-				if (player[rank[k]].Z < player[rank[k + 1]].Z) {
+				if (player[rank[k]].T < player[rank[k + 1]].T) {
 					int tmp = rank[k];
 					rank[k] = rank[k + 1];
 					rank[k + 1] = tmp;
 				}
 
-		// ì ìˆ˜ ê³„ì‚°
+		// Á¡¼ö °è»ê
 		for (j = 0; j < 8; j++) {
 			if (rank[j] < 4)
 				resScore += score[j];
@@ -119,35 +133,41 @@ double Team::matchA(Team oppTeam, int matchCnt) {
 		}
 	}
 
+	// resScore¿¡´Â matchCnt¹øÀÇ °æ±âÀÇ ´©Àû Á¡¼ö°¡ µé¾î ÀÖÀ¸¹Ç·Î, matchCnt·Î ³ª´² Æò±ÕÀ» ¸®ÅÏÇÑ´Ù.
 	return resScore / matchCnt;
 }
 
+/*
+	¾Æ±º ÆÀ°ú oppTeamÀÇ ¼±¼öµéÀÇ TÁ¡¼ö¸¦ ¹ÙÅÁÀ¸·Î ¹ë·±½º Á¡¼ö¸¦ »êÃâÇÑ´Ù.
+
+	Output: ¹ë·±½º Á¡¼ö(¹Ì¿Ï¼º)
+*/
 double Team::matchB(Team oppTeam) {
 	int rank[8] = { 0, 1, 2, 3, 4, 5, 6, 7 }, score[8] = { 10, 8, 6, 5, 4, 3, 2, 1 };
 	int i, j, k;
-	double resScore = 0, ZGapAvg = 0, ZGapStd = 0;
-	Player player[8];	// player[0 ~ 3] : ì•„êµ°, player[4 ~ 7] : ìƒëŒ€
+	double resScore = 0, TGapAvg = 0, TGapStd = 0;
+	Player player[8];	// player[0 ~ 3] : ¾Æ±º, player[4 ~ 7] : »ó´ë
 
-	// player[]ì— ì„ ìˆ˜ ì •ë³´ë¥¼ ë„£ëŠ”ë‹¤.
+	// player[]¿¡ ¼±¼ö Á¤º¸¸¦ ³Ö´Â´Ù.
 	for (j = 0; j < 4; j++) {
 		player[j] = this->member[j];
 		player[j + 4] = oppTeam.member[j];
 	}
 
-	// ìˆœìœ„ ì •ë ¬ (Bubble Sort)
-	// rank[n]ì—ëŠ” (n + 1)ë“±ì„ í•œ ì„ ìˆ˜ì˜ ë²ˆí˜¸ê°€ ë“¤ì–´ê°€ê²Œ ëœë‹¤.
+	// ¼øÀ§ Á¤·Ä (Bubble Sort)
+	// rank[n]¿¡´Â (n + 1)µîÀ» ÇÑ ¼±¼öÀÇ ¹øÈ£°¡ µé¾î°¡°Ô µÈ´Ù.
 	for (j = 7; j > 0; j--)
 		for (k = 0; k < j; k++)
-			if (player[rank[k]].Z < player[rank[k + 1]].Z) {
+			if (player[rank[k]].T < player[rank[k + 1]].T) {
 				int tmp = rank[k];
 				rank[k] = rank[k + 1];
 				rank[k + 1] = tmp;
 			}
 
-	// ZGapAvg ê³„ì‚°
-	ZGapAvg = (player[rank[0]].Z - player[rank[7]].Z) / 7;
+	// TGapAvg °è»ê
+	TGapAvg = (player[rank[0]].T - player[rank[7]].T) / 7;
 
-	// ì ìˆ˜ ê³„ì‚°
+	// Á¡¼ö °è»ê
 	for (j = 0; j < 8; j++) {
 		if (rank[j] < 4)
 			resScore += score[j];
@@ -156,10 +176,28 @@ double Team::matchB(Team oppTeam) {
 	}
 
 	for (i = 0; i < 7; i++)
-		ZGapStd += pow(player[rank[i]].Z - player[rank[i + 1]].Z - ZGapAvg, 2);
-	ZGapStd /= 7, ZGapStd = sqrt(ZGapStd);
+		TGapStd += pow(player[rank[i]].T - player[rank[i + 1]].T - TGapAvg, 2);
+	TGapStd /= 7, TGapStd = sqrt(TGapStd);
 
-	return ZGapStd + fabs(resScore);
+	// TO DO
+	// TGapAvg, TGapStd, resScoreÀÇ Á¶ÇÕ °áÁ¤
+	return TGapAvg + TGapStd + fabs(resScore);
+}
+
+double Composition::calcScore(int playerCnt) {
+	int i, j, teamCnt;
+	double res = 0;
+
+	teamCnt = playerCnt / 4;
+	for (i = 0; i < teamCnt - 1; i++)
+		for (j = i + 1; j < teamCnt; j++) {
+			res += team[i].matchA(team[j], 100000);
+			// res += team[i].matchB(team[j]);
+			
+			printf("ÁøÇàÁß : %.2f%%\n", (float)(++matchCmpl) / matchTotal * 100);
+		}
+
+	return res / ((teamCnt) * (teamCnt - 1) / 2);
 }
 
 void sortPlayer(Player* player, int playerCnt) {
@@ -168,7 +206,7 @@ void sortPlayer(Player* player, int playerCnt) {
 
 	for (i = playerCnt - 1; i > 0; i--)
 		for (j = 0; j < i; j++)
-			if (player[j].Z < player[j + 1].Z) {
+			if (player[j].T < player[j + 1].T) {
 				tmp = player[j];
 				player[j] = player[j + 1];
 				player[j + 1] = tmp;
@@ -176,21 +214,23 @@ void sortPlayer(Player* player, int playerCnt) {
 }
 
 Composition* getAllComp(Player* player, int playerCnt) {
-	Composition* comp = new Composition [11];
+	Composition* comp = new Composition [12];
 	int i, j;
 	int teamCnt;
 	teamCnt = playerCnt / 4;
 
-	for (i = 0; i < 11; i++) {
-		comp[i].team = new Team[teamCnt];	// ê° ì¡°í•©ì—ëŠ” teamCntê°œì˜ íŒ€ì´ ìžˆë‹¤.
+	for (i = 0; i < 12; i++) {
+		comp[i].team = new Team[teamCnt];	// °¢ Á¶ÇÕ¿¡´Â teamCnt°³ÀÇ ÆÀÀÌ ÀÖ´Ù.
 
-		// ìµœìƒìœ„ê¶Œ teamCntëª…ì„ ê°ê° ë‹¤ë¥¸ íŒ€ì— ë°°ì¹˜
-		for (j = 0; j < teamCnt; j++)
-			comp[i].team[j].member[0] = player[j];
+		// ÃÖ»óÀ§±Ç teamCnt¸íÀ» °¢°¢ ´Ù¸¥ ÆÀ¿¡ ¹èÄ¡ (comp[11] Á¦¿Ü)
+		if (i != 11) {
+			for (j = 0; j < teamCnt; j++)
+				comp[i].team[j].member[0] = player[j];
+		}	
 	}
 
 	/*
-		group 1 ì¡°í•©
+		group 1 Á¶ÇÕ
 		comp[0] ~ comp[6]
 	*/
 	for (i = 0; i < 7; i++) {
@@ -221,8 +261,8 @@ Composition* getAllComp(Player* player, int playerCnt) {
 	}
 
 	/*
-		group 2 ì¡°í•©
-		comp[7] ~ comp[10]
+		group 2 Á¶ÇÕ
+		comp[7] ~ comp[11]
 	*/
 	// comp[7]
 	for (i = 0; i < teamCnt; i++) {
@@ -252,34 +292,29 @@ Composition* getAllComp(Player* player, int playerCnt) {
 		comp[10].team[i].member[3] = player[-i - 1 + 4 * teamCnt];
 	}
 
+	// comp[11]
+	for (i = 0; i < teamCnt; i++) {
+		comp[11].team[i].member[0] = player[i * 2];
+		comp[11].team[i].member[1] = player[i * 2 + 1];
+		comp[11].team[i].member[2] = player[-i * 2 - 2 + 4 * teamCnt];
+		comp[11].team[i].member[3] = player[-i * 2 - 1 + 4 * teamCnt];
+	}
+
+	matchTotal = (teamCnt * (teamCnt - 1)) / 2 * 12;
+
 	return comp;
-}
-
-double calcCompScore(Composition comp, int playerCnt) {
-	Team* team = comp.team;
-	int i, j, teamCnt;
-	double res = 0;
-
-	teamCnt = playerCnt / 4;
-	for (i = 0; i < teamCnt - 1; i++)
-		for (j = i + 1; j < teamCnt; j++) {
-			res += team[i].matchA(team[j], 100000);
-			// res += team[i].matchB(team[j]);
-		}
-
-	return res / ((teamCnt) * (teamCnt - 1) / 2);
 }
 
 Composition getOptComp(Player* player, int playerCnt) {
 	Composition* comp, res;
 	int i, teamCnt;
-	double compScore[11], minScore;
+	double compScore[12], minScore;
 
 	teamCnt = playerCnt / 4;
 	comp = getAllComp(player, playerCnt);
 
-	for (i = 0; i < 11; i++)
-		compScore[i] = calcCompScore(comp[i], playerCnt);
+	for (i = 0; i < 12; i++)
+		compScore[i] = comp[i].calcScore(playerCnt);
 
 	minScore = fabs(compScore[0]);
 	res = comp[0];
@@ -292,65 +327,65 @@ Composition getOptComp(Player* player, int playerCnt) {
 	return res;
 }
 
-void printRec(double rec) {
+void writeRec(FILE* fp, double rec) {
 	int min = (int)rec / 60;
-	double csec = floor(100 * (rec - (int)rec) + 0.5);	// ì„¼í‹°ì´ˆ(centi second)
-	printf("0%dë¶„ ", min);
+	double csec = floor(100 * (rec - (int)rec) + 0.5);	// ¼¾Æ¼ÃÊ(centi second)
+	fprintf(fp, "0%dºÐ ", min);
 
 	if (rec - min * 60.0 < 10)
-		printf("0");
-	printf("%dì´ˆ ", (int)(rec - min * 60.0));
+		fprintf(fp, "0");
+	fprintf(fp, "%dÃÊ ", (int)(rec - min * 60.0));
 
 	if (csec < 10)
-		printf("0");
-	printf("%d", (int)csec);
+		fprintf(fp, "0");
+	fprintf(fp, "%d", (int)csec);
 }
 
-void printResult(Player* player, int playerCnt, Track* track, int trackCnt, Composition comp) {
+void writeResult(FILE* fp, Player* player, int playerCnt, Track* track, int trackCnt, Composition comp) {
 	int i, j, teamCnt;
 	teamCnt = playerCnt / 4;
 	
-	printf(",");
+	fprintf(fp, ",");
 	for (i = 0; i < trackCnt; i++)
-		printf("%s,,", track[i].name);
-	printf("\n");
+		fprintf(fp, "%s,,", track[i].name);
+	fprintf(fp, "\n");
 
-	printf(",");
+	fprintf(fp, ",");
 	for (i = 0; i < trackCnt; i++)
-		printf("%s,%s,", "ê¸°ë¡", "í‘œì¤€ì ìˆ˜");
-	printf("Z");
-	printf("\n");
+		fprintf(fp, "%s,%s,", "±â·Ï", "TÁ¡¼ö");
+	fprintf(fp, "TÁ¡¼ö(Á¾ÇÕ)");
+	fprintf(fp, "\n");
 
 	for (i = 0; i < playerCnt; i++) {
-		printf("%s,", player[i].name);
+		fprintf(fp, "%s,", player[i].name);
 
 		for (j = 0; j < trackCnt; j++) {
-			printRec(player[i].trackRec[j]);
-			printf(",");
-			printf("%lf,", player[i].trackZ[j]);
+			writeRec(fp, player[i].trackRec[j]);
+			fprintf(fp, ",");
+			fprintf(fp, "%lf,", player[i].trackT[j]);
 		}
 		
-		printf("%lf", player[i].Z);
-		printf("\n");
+		fprintf(fp, "%lf", player[i].T);
+		fprintf(fp, "\n");
 	}
 
-	printf("%s,", "í‰ê· ");
+	fprintf(fp, "%s,", "Æò±Õ");
 	for (i = 0; i < trackCnt; i++) {
-		printRec(track[i].avg);
-		printf(",,");
+		writeRec(fp, track[i].avg);
+		fprintf(fp, ",,");
 	}
-	printf("\n");
-	printf("%s,", "í‘œì¤€íŽ¸ì°¨(ì´ˆ)");
+	fprintf(fp, "\n");
+	fprintf(fp, "%s,", "Ç¥ÁØÆíÂ÷(ÃÊ)");
 	for (i = 0; i < trackCnt; i++)
-		printf("%lf,,", track[i].std);
-	printf("\n\n");
+		fprintf(fp, "%lf,,", track[i].std);
+	fprintf(fp, "\n\n");
 
 	for (i = 0; i < teamCnt; i++)
-		printf("íŒ€ %c,", 'A' + i);
-	printf("\n");
+		fprintf(fp, "ÆÀ %c,", 'A' + i);
+	fprintf(fp, "\n");
 	for (i = 0; i < 4; i++) {
 		for (j = 0; j < teamCnt; j++)
-			printf("%s,", comp.team[j].member[i].name);
-		printf("\n");
+			fprintf(fp, "%s,", comp.team[j].member[i].name);
+		fprintf(fp, "\n");
 	}
 }
