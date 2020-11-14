@@ -52,8 +52,8 @@ int playerCnt, teamCnt;
 Track* track;
 int trackCnt;
 
-int matchCnt;		// match 함수가 호출되는 총 횟수
-int matchCmpl = 0;	// matchCompletion : match 함수가 호출된 횟수
+int matchFuncCnt;		// match 함수가 호출되는 총 횟수
+int matchFuncCmpl = 0;	// matchCompletion : match 함수가 호출된 횟수
 
 void errorExit(const char* s);
 void sortPlayer();

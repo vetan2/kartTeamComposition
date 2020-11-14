@@ -199,7 +199,7 @@ double Composition::calcScore() {
 			res += team[i].matchA(team[j], 100000, T_declineAvg);
 			// res += team[i].matchB(team[j]);
 			
-			printf("진행중 : %.2f%%\n", (float)(++matchCmpl) / matchCnt * 100);
+			printf("진행중 : %.2f%%\n", (float)(++matchFuncCmpl) / matchFuncCnt * 100);
 		}
 
 	return res / ((teamCnt) * (teamCnt - 1) / 2);
@@ -303,7 +303,7 @@ Composition* getAllComp() {
 		comp[11].team[i].member[3] = player[-i * 2 - 1 + 4 * teamCnt];
 	}
 
-	matchCnt = (teamCnt * (teamCnt - 1)) / 2 * 12;
+	matchFuncCnt = (teamCnt * (teamCnt - 1)) / 2 * 12;
 
 	return comp;
 }
