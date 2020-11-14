@@ -1,16 +1,13 @@
 #include "kartTeam.h"
 
 int main() {
-	FILE* fp;
-	Player* player;
-	Track* track;
-	int playerCnt, trackCnt;
 	int i;
 
 	scanf("%d %d", &playerCnt, &trackCnt);
 	if (playerCnt % 4 != 0)
 		errorExit("선수의 수가 4의 배수가 되어야 합니다.");
 
+	teamCnt = playerCnt / 4;
 	fp = fopen("result.csv", "w");
 
 	player = new Player[playerCnt];
@@ -21,21 +18,23 @@ int main() {
 
 	track = new Track[trackCnt];
 
-	for (i = 0; i < trackCnt; i++)
+	for (i = 0; i < trackCnt; i++) {
+		track[i].trackID = i;
 		scanf("%s", track[i].name);
+	}
 
 	for (i = 0; i < playerCnt; i++)
-		player[i].input(trackCnt);
+		player[i].input();
 	printf("\n");
 
 	for (i = 0; i < trackCnt; i++)
-		track[i].getTrackStat(player, playerCnt, i);
+		track[i].getTrackStat();
 
 	for (i = 0; i < playerCnt; i++)
-		player[i].calcT(track, trackCnt);
-	sortPlayer(player, playerCnt);
+		player[i].calcT();
+	sortPlayer();
 
-	writeResult(fp, player, playerCnt, track, trackCnt, getOptComp(player, playerCnt));
+	writeResult(getOptComp());
 	fclose(fp);
 	printf("\n팀 편성 완료! result.csv 파일을 확인하세요.\n\n");
 	system("pause");
@@ -47,7 +46,7 @@ void errorExit(const char* s) {
 	exit(-1);
 }
 
-void Player::input(int trackCnt) {
+void Player::input() {
 	int i, n;
 	
 	scanf("%s", name);
@@ -57,7 +56,7 @@ void Player::input(int trackCnt) {
 	}
 }
 
-void Player::calcT(Track* track, int trackCnt) {
+void Player::calcT() {
 	int i;
 
 	T = 0;
@@ -72,19 +71,21 @@ void Player::calcT(Track* track, int trackCnt) {
 	트랙의 기록 평균과 표준편차를 구한다.
 	Update : avg, std
 */
-void Track::getTrackStat(Player* player, int playerCnt, int trackNum) {
+void Track::getTrackStat() {
 	int i;
 
 	avg = 0, std = 0;
 
 	for (i = 0; i < playerCnt; i++)
-		avg += player[i].trackRec[trackNum];
+		avg += player[i].trackRec[trackID];
 	avg /= playerCnt;
 
 	for (i = 0; i < playerCnt; i++)
-		std += pow(player[i].trackRec[trackNum] - avg, 2);
+		std += pow(player[i].trackRec[trackID] - avg, 2);
 	std /= playerCnt;
 	std = sqrt(std);
+
+	T_decline = 3 * 20 * (avg / 60.0) / std;
 }
 
 /*
@@ -92,7 +93,7 @@ void Track::getTrackStat(Player* player, int playerCnt, int trackNum) {
 
 	Output : 상대 팀에 대한 우리 팀 점수 차이의 평균 (절댓값이 낮을수록 밸런스가 좋음)
 */
-double Team::matchA(Team oppTeam, int matchCnt) {
+double Team::matchA(Team oppTeam, int matchCnt, double T_decline) {
 	int rank[8], score[8] = { 10, 8, 6, 5, 4, 3, 2, 1 };
 	int i, j, k;
 	double resScore = 0;
@@ -105,13 +106,13 @@ double Team::matchA(Team oppTeam, int matchCnt) {
 			rank[j] = j;
 
 		// player[]에 선수 정보를 넣는다.
-		// 선수들은 각자의 T에 random한 컨디션 하락(-20 ~ 0)을 받는다.
+		// 선수들은 각자의 T에 random한 컨디션 하락(-T_decline ~ 0)을 받는다.
 		for (j = 0; j < 4; j++) {
 			player[j] = this->member[j];
-			player[j].T -= rand() % 20 - 1;
-			
+			player[j].T -= T_decline * (rand() / (float)RAND_MAX);
+		
 			player[j + 4] = oppTeam.member[j];
-			player[j + 4].T -= rand() % 20 - 1;
+			player[j + 4].T -= T_decline * (rand() / (float)RAND_MAX);
 		}
 
 		// 순위 정렬 (Bubble Sort)
@@ -184,23 +185,27 @@ double Team::matchB(Team oppTeam) {
 	return TGapAvg + TGapStd + fabs(resScore);
 }
 
-double Composition::calcScore(int playerCnt) {
-	int i, j, teamCnt;
+double Composition::calcScore() {
+	int i, j;
 	double res = 0;
+	double T_declineAvg = 0;
 
-	teamCnt = playerCnt / 4;
+	for (i = 0; i < trackCnt; i++)
+		T_declineAvg += track[i].T_decline;
+	T_declineAvg /= trackCnt;
+
 	for (i = 0; i < teamCnt - 1; i++)
 		for (j = i + 1; j < teamCnt; j++) {
-			res += team[i].matchA(team[j], 100000);
+			res += team[i].matchA(team[j], 100000, T_declineAvg);
 			// res += team[i].matchB(team[j]);
 			
-			printf("진행중 : %.2f%%\n", (float)(++matchCmpl) / matchTotal * 100);
+			printf("진행중 : %.2f%%\n", (float)(++matchCmpl) / matchCnt * 100);
 		}
 
 	return res / ((teamCnt) * (teamCnt - 1) / 2);
 }
 
-void sortPlayer(Player* player, int playerCnt) {
+void sortPlayer() {
 	int i, j;
 	Player tmp;
 
@@ -213,11 +218,9 @@ void sortPlayer(Player* player, int playerCnt) {
 			}
 }
 
-Composition* getAllComp(Player* player, int playerCnt) {
+Composition* getAllComp() {
 	Composition* comp = new Composition [12];
 	int i, j;
-	int teamCnt;
-	teamCnt = playerCnt / 4;
 
 	for (i = 0; i < 12; i++) {
 		comp[i].team = new Team[teamCnt];	// 각 조합에는 teamCnt개의 팀이 있다.
@@ -300,21 +303,20 @@ Composition* getAllComp(Player* player, int playerCnt) {
 		comp[11].team[i].member[3] = player[-i * 2 - 1 + 4 * teamCnt];
 	}
 
-	matchTotal = (teamCnt * (teamCnt - 1)) / 2 * 12;
+	matchCnt = (teamCnt * (teamCnt - 1)) / 2 * 12;
 
 	return comp;
 }
 
-Composition getOptComp(Player* player, int playerCnt) {
+Composition getOptComp() {
 	Composition* comp, res;
-	int i, teamCnt;
+	int i;
 	double compScore[12], minScore;
 
-	teamCnt = playerCnt / 4;
-	comp = getAllComp(player, playerCnt);
+	comp = getAllComp();
 
 	for (i = 0; i < 12; i++)
-		compScore[i] = comp[i].calcScore(playerCnt);
+		compScore[i] = comp[i].calcScore();
 
 	minScore = fabs(compScore[0]);
 	res = comp[0];
@@ -327,7 +329,7 @@ Composition getOptComp(Player* player, int playerCnt) {
 	return res;
 }
 
-void writeRec(FILE* fp, double rec) {
+void writeRec(double rec) {
 	int min = (int)rec / 60;
 	double csec = floor(100 * (rec - (int)rec) + 0.5);	// 센티초(centi second)
 	fprintf(fp, "0%d분 ", min);
@@ -341,7 +343,7 @@ void writeRec(FILE* fp, double rec) {
 	fprintf(fp, "%d", (int)csec);
 }
 
-void writeResult(FILE* fp, Player* player, int playerCnt, Track* track, int trackCnt, Composition comp) {
+void writeResult(Composition comp) {
 	int i, j, teamCnt;
 	teamCnt = playerCnt / 4;
 	
@@ -360,7 +362,7 @@ void writeResult(FILE* fp, Player* player, int playerCnt, Track* track, int trac
 		fprintf(fp, "%s,", player[i].name);
 
 		for (j = 0; j < trackCnt; j++) {
-			writeRec(fp, player[i].trackRec[j]);
+			writeRec(player[i].trackRec[j]);
 			fprintf(fp, ",");
 			fprintf(fp, "%lf,", player[i].trackT[j]);
 		}
@@ -371,7 +373,7 @@ void writeResult(FILE* fp, Player* player, int playerCnt, Track* track, int trac
 
 	fprintf(fp, "%s,", "평균");
 	for (i = 0; i < trackCnt; i++) {
-		writeRec(fp, track[i].avg);
+		writeRec(track[i].avg);
 		fprintf(fp, ",,");
 	}
 	fprintf(fp, "\n");
