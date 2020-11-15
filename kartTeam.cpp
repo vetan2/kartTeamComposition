@@ -97,7 +97,7 @@ double Team::matchA(Team oppTeam, int matchCnt, double T_decline) {
 	int rank[8], score[8] = { 10, 8, 6, 5, 4, 3, 2, 1 };
 	int i, j, k;
 	double resScore = 0;
-	Player player[8];	// player[0 ~ 3] : 아군, player[4 ~ 7] : 상대
+	Player partPlayer[8];	// partPlayer[0 ~ 3] : 아군, partPlayer[4 ~ 7] : 상대
 
 	srand(time(NULL));
 	for (i = 0; i < matchCnt; i++) {
@@ -108,18 +108,18 @@ double Team::matchA(Team oppTeam, int matchCnt, double T_decline) {
 		// player[]에 선수 정보를 넣는다.
 		// 선수들은 각자의 T에 random한 컨디션 하락(-T_decline ~ 0)을 받는다.
 		for (j = 0; j < 4; j++) {
-			player[j] = this->member[j];
-			player[j].T -= T_decline * (rand() / (float)RAND_MAX);
+			partPlayer[j] = this->member[j];
+			partPlayer[j].T -= T_decline * (rand() / (float)RAND_MAX);
 		
-			player[j + 4] = oppTeam.member[j];
-			player[j + 4].T -= T_decline * (rand() / (float)RAND_MAX);
+			partPlayer[j + 4] = oppTeam.member[j];
+			partPlayer[j + 4].T -= T_decline * (rand() / (float)RAND_MAX);
 		}
 
 		// 순위 정렬 (Bubble Sort)
 		// rank[n] : (n + 1)등을 한 선수의 index
 		for (j = 7; j > 0; j--)
 			for (k = 0; k < j; k++)
-				if (player[rank[k]].T < player[rank[k + 1]].T) {
+				if (partPlayer[rank[k]].T < partPlayer[rank[k + 1]].T) {
 					int tmp = rank[k];
 					rank[k] = rank[k + 1];
 					rank[k + 1] = tmp;
@@ -320,7 +320,7 @@ Composition getOptComp() {
 
 	minScore = fabs(compScore[0]);
 	res = comp[0];
-	for (i = 1; i < 11; i++)
+	for (i = 1; i < 12; i++)
 		if (fabs(compScore[i]) < minScore) {
 			minScore = fabs(compScore[i]);
 			res = comp[i];
